@@ -8,7 +8,18 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 const templatesDir = resolve(__dirname, "../templates");
 
 function readWorkflow(name: string) {
-  const content = readFileSync(resolve(templatesDir, name), "utf-8");
+  let content = readFileSync(resolve(templatesDir, name), "utf-8");
+  if (name === "release-runner.yml") {
+    content = content.replace(
+      "{{RELEASE_TRIGGER_WORKFLOWS}}",
+      [
+        "  workflow_run:",
+        '    workflows: ["CI"]',
+        "    types: [completed]",
+        "    branches: [main]",
+      ].join("\n")
+    );
+  }
   return parse(content);
 }
 

@@ -3,10 +3,7 @@ name: Release Runner
 on:
   push:
     branches: [main]
-  workflow_run:
-    workflows: ["{{CI_WORKFLOW_NAME}}"]
-    types: [completed]
-    branches: [main]
+{{RELEASE_TRIGGER_WORKFLOWS}}
 
 permissions:
   contents: write

@@ -1,8 +1,8 @@
 import { describe, it, expect, beforeEach } from "vitest";
-import { mkdtempSync, readFileSync } from "node:fs";
+import { mkdtempSync, readFileSync, mkdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
-import { scaffoldFiles } from "./init.js";
+import { detectReleaseTriggerWorkflows, scaffoldFiles } from "./init.js";
 
 describe("scaffoldFiles", () => {
   let tempDir: string;
@@ -14,7 +14,7 @@ describe("scaffoldFiles", () => {
   it("creates all workflow and config files", () => {
     const result = scaffoldFiles(tempDir, {
       claudeActionSha: "abc123def456",
-      ciWorkflowName: "CI",
+      releaseTriggerWorkflows: ["CI"],
     });
 
     expect(result.created).toContain(".github/workflows/triage-agent.yml");
@@ -29,7 +29,7 @@ describe("scaffoldFiles", () => {
   it("replaces template placeholders", () => {
     scaffoldFiles(tempDir, {
       claudeActionSha: "abc123def456",
-      ciWorkflowName: "My CI",
+      releaseTriggerWorkflows: ["package-smoke", "validate-swift"],
     });
 
     const triage = readFileSync(
@@ -43,13 +43,66 @@ describe("scaffoldFiles", () => {
       join(tempDir, ".github/workflows/release-runner.yml"),
       "utf-8"
     );
-    expect(release).toContain("My CI");
-    expect(release).not.toContain("{{CI_WORKFLOW_NAME}}");
+    expect(release).toContain('workflows: ["package-smoke", "validate-swift"]');
+    expect(release).not.toContain("{{RELEASE_TRIGGER_WORKFLOWS}}");
+  });
+
+  it("omits workflow_run when no release trigger workflows are configured", () => {
+    scaffoldFiles(tempDir, {
+      claudeActionSha: "abc123def456",
+      releaseTriggerWorkflows: [],
+    });
+
+    const release = readFileSync(
+      join(tempDir, ".github/workflows/release-runner.yml"),
+      "utf-8"
+    );
+    expect(release).not.toContain("workflow_run:");
+  });
+
+  it("detects CI-like workflows from the repo", () => {
+    const workflowsDir = join(tempDir, ".github/workflows");
+    mkdirSync(workflowsDir, { recursive: true });
+
+    writeFileSync(
+      join(workflowsDir, "validate-swift.yml"),
+      [
+        "name: validate-swift",
+        "",
+        "on:",
+        "  push:",
+        "  pull_request:",
+      ].join("\n")
+    );
+    writeFileSync(
+      join(workflowsDir, "package-smoke.yml"),
+      [
+        "name: package-smoke",
+        "",
+        "on: [pull_request, workflow_dispatch]",
+      ].join("\n")
+    );
+    writeFileSync(
+      join(workflowsDir, "release-dmg.yml"),
+      [
+        "name: Build macOS DMG",
+        "",
+        "on:",
+        "  workflow_dispatch:",
+        "  release:",
+        "    types: [published]",
+      ].join("\n")
+    );
+
+    expect(detectReleaseTriggerWorkflows(tempDir)).toEqual([
+      "package-smoke",
+      "validate-swift",
+    ]);
   });
 
   it("skips existing files", () => {
-    scaffoldFiles(tempDir, { claudeActionSha: "abc123", ciWorkflowName: "CI" });
-    const result = scaffoldFiles(tempDir, { claudeActionSha: "abc123", ciWorkflowName: "CI" });
+    scaffoldFiles(tempDir, { claudeActionSha: "abc123", releaseTriggerWorkflows: ["CI"] });
+    const result = scaffoldFiles(tempDir, { claudeActionSha: "abc123", releaseTriggerWorkflows: ["CI"] });
     expect(result.skipped.length).toBe(6);
     expect(result.created.length).toBe(0);
   });

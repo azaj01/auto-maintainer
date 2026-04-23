@@ -126,6 +126,8 @@ When this happens, it labels the item `state:awaiting-human` and waits. You deci
 
 auto-maintainer works with whatever CI you already have. Your tests, your linters, your smoke tests — they all run as normal. The Gate Runner won't merge anything until your CI passes.
 
+During `init` and `update`, Release Runner auto-detects CI-like workflows in `.github/workflows` and watches all of them for completion on the default branch. If you add or rename workflows later, re-run `npx auto-maintainer update` so the trigger list stays current.
+
 If branch protection is enough for your repo, you can stop there. If you want explicit named checks, configure them in `.github/repo-policy.yml`:
 
 ```yaml
@@ -189,7 +191,6 @@ Alongside `.github/repo-policy.md`, auto-maintainer scaffolds `.github/repo-poli
 
 ```yaml
 merge_strategy: squash
-ci_workflow_name: CI
 required_pr_checks: []
 required_release_checks: []
 ```

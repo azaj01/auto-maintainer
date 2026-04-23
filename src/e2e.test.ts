@@ -16,7 +16,7 @@ describe("e2e: full scaffold", () => {
   it("produces a complete, valid scaffold", () => {
     const result = scaffoldFiles(tempDir, {
       claudeActionSha: "a1b2c3d4e5f6",
-      ciWorkflowName: "Build and Test",
+      releaseTriggerWorkflows: ["Build and Test", "package-smoke"],
     });
 
     expect(result.created.length).toBe(6);
@@ -27,7 +27,7 @@ describe("e2e: full scaffold", () => {
       const content = readFileSync(join(tempDir, ".github/workflows", wf), "utf-8");
       // Must not contain unresolved placeholders
       expect(content).not.toContain("{{CLAUDE_ACTION_SHA}}");
-      expect(content).not.toContain("{{CI_WORKFLOW_NAME}}");
+      expect(content).not.toContain("{{RELEASE_TRIGGER_WORKFLOWS}}");
       expect(content).not.toContain("{{SYSTEM_PROMPT_TRIAGE}}");
       expect(content).not.toContain("{{SYSTEM_PROMPT_IMPLEMENT}}");
       // Must parse as valid YAML
@@ -51,7 +51,7 @@ describe("e2e: full scaffold", () => {
     const config = readFileSync(join(tempDir, ".github/repo-policy.yml"), "utf-8");
     const parsedConfig = parse(config);
     expect(parsedConfig.merge_strategy).toBe("squash");
-    expect(parsedConfig.ci_workflow_name).toBe("Build and Test");
+    expect(parsedConfig.ci_workflow_name).toBeUndefined();
     expect(parsedConfig.required_pr_checks).toEqual([]);
     expect(parsedConfig.required_release_checks).toEqual([]);
     expect(parsedConfig.homebrew_cask).toBeUndefined();
@@ -59,7 +59,7 @@ describe("e2e: full scaffold", () => {
     // Idempotent
     const result2 = scaffoldFiles(tempDir, {
       claudeActionSha: "a1b2c3d4e5f6",
-      ciWorkflowName: "Build and Test",
+      releaseTriggerWorkflows: ["Build and Test", "package-smoke"],
     });
     expect(result2.created.length).toBe(0);
     expect(result2.skipped.length).toBe(6);

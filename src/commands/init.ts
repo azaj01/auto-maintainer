@@ -10,7 +10,7 @@ const TEMPLATES_DIR = resolve(__dirname, "../../templates");
 
 interface ScaffoldOptions {
   claudeActionSha: string;
-  ciWorkflowName: string;
+  releaseTriggerWorkflows: string[];
 }
 
 interface ScaffoldResult {
@@ -55,10 +55,27 @@ function embedPrompt(yaml: string, placeholder: string, promptContent: string): 
   return result.join("\n");
 }
 
+function renderWorkflowRunTrigger(workflows: string[]): string {
+  if (workflows.length === 0) {
+    return "";
+  }
+
+  const encoded = workflows.map((workflow) => JSON.stringify(workflow)).join(", ");
+  return [
+    "  workflow_run:",
+    `    workflows: [${encoded}]`,
+    "    types: [completed]",
+    "    branches: [main]",
+  ].join("\n");
+}
+
 function renderTemplate(template: string, options: ScaffoldOptions): string {
   let content = readFileSync(join(TEMPLATES_DIR, template), "utf-8");
   content = content.replace(/\{\{CLAUDE_ACTION_SHA\}\}/g, options.claudeActionSha);
-  content = content.replace(/\{\{CI_WORKFLOW_NAME\}\}/g, options.ciWorkflowName);
+  content = content.replace(
+    /\{\{RELEASE_TRIGGER_WORKFLOWS\}\}/g,
+    renderWorkflowRunTrigger(options.releaseTriggerWorkflows)
+  );
 
   if (template === "triage-agent.yml") {
     const prompt = readFileSync(join(TEMPLATES_DIR, "system-prompt-triage.md"), "utf-8");
@@ -340,55 +357,49 @@ export function resolveClaudeActionSha(): string {
   return sha;
 }
 
-export async function detectCiWorkflowName(repoRoot: string): Promise<string> {
+function readWorkflowName(content: string): string | null {
+  const match = content.match(/^name:\s*['"]?(.+?)['"]?\s*$/m);
+  return match ? match[1].trim() : null;
+}
+
+function hasCiLikeTrigger(content: string): boolean {
+  if (!/^on:/m.test(content)) {
+    return false;
+  }
+
+  if (/^on:\s*(push|pull_request|pull_request_target)\s*$/m.test(content)) {
+    return true;
+  }
+
+  const inlineMatch = content.match(/^on:\s*\[(.+)\]\s*$/m);
+  if (inlineMatch) {
+    return inlineMatch[1]
+      .split(",")
+      .map((eventName) => eventName.trim().replace(/^['"]|['"]$/g, ""))
+      .some((eventName) => ["push", "pull_request", "pull_request_target"].includes(eventName));
+  }
+
+  return /^\s{2}(push|pull_request|pull_request_target):/m.test(content);
+}
+
+export function detectReleaseTriggerWorkflows(repoRoot: string): string[] {
   const workflowsDir = join(repoRoot, ".github", "workflows");
   if (!existsSync(workflowsDir)) {
-    return "CI";
+    return [];
   }
 
   const files = readdirSync(workflowsDir).filter(
     (f) => (f.endsWith(".yml") || f.endsWith(".yaml")) && !AUTO_MAINTAINER_WORKFLOWS.has(f)
   );
 
-  const workflows: { file: string; name: string }[] = [];
+  const workflowNames: string[] = [];
   for (const file of files) {
     const content = readFileSync(join(workflowsDir, file), "utf-8");
-    const match = content.match(/^name:\s*['"]?(.+?)['"]?\s*$/m);
-    if (match) {
-      workflows.push({ file, name: match[1] });
+    const name = readWorkflowName(content);
+    if (name && hasCiLikeTrigger(content)) {
+      workflowNames.push(name);
     }
   }
 
-  if (workflows.length === 0) {
-    return "CI";
-  }
-
-  if (workflows.length === 1) {
-    return workflows[0].name;
-  }
-
-  const options = [
-    ...workflows.map((w) => ({
-      value: w.name,
-      label: w.name,
-      hint: w.file,
-    })),
-    { value: "__none__", label: "None", hint: "I don't have a CI workflow yet" },
-  ];
-
-  const choice = await p.select({
-    message: "Which workflow is your CI?",
-    options,
-  });
-
-  if (p.isCancel(choice)) {
-    p.cancel("Setup cancelled.");
-    process.exit(0);
-  }
-
-  if (choice === "__none__") {
-    return "CI";
-  }
-
-  return choice as string;
+  return [...new Set(workflowNames)].sort((a, b) => a.localeCompare(b));
 }

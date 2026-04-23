@@ -12,7 +12,7 @@ import {
   findRepoRoot,
   checkGhAvailable,
   resolveClaudeActionSha,
-  detectCiWorkflowName,
+  detectReleaseTriggerWorkflows,
   extractClaudeOAuthToken,
   generatePolicy,
 } from "./commands/init.js";
@@ -72,22 +72,25 @@ program
         actionSha = "REPLACE_WITH_SHA";
       }
 
-      // 4. Detect CI workflow
-      const ciName = await detectCiWorkflowName(repoRoot);
-      if (ciName === "CI") {
+      // 4. Detect workflows that should wake the release runner
+      const releaseTriggerWorkflows = detectReleaseTriggerWorkflows(repoRoot);
+      if (releaseTriggerWorkflows.length === 0) {
         p.log.warn(
-          `No CI workflow found — using placeholder.\n` +
-          pc.dim("  The release runner won't trigger until you have a CI workflow.\n") +
-          pc.dim("  Set ci_workflow_name in .github/repo-policy.yml when ready.")
+          `No CI-like workflows found.\n` +
+          pc.dim("  Release Runner will run on pushes to the default branch only.\n") +
+          pc.dim("  Re-run `npx auto-maintainer update` after adding or renaming CI workflows.")
         );
       } else {
-        p.log.success(`CI workflow: ${pc.cyan(ciName)}`);
+        p.log.success(`Release triggers: ${pc.cyan(releaseTriggerWorkflows.join(", "))}`);
       }
 
       // 5. Scaffold files
       const scaffoldSpinner = p.spinner();
       scaffoldSpinner.start("Scaffolding workflow files");
-      const result = scaffoldFiles(repoRoot, { claudeActionSha: actionSha, ciWorkflowName: ciName });
+      const result = scaffoldFiles(repoRoot, {
+        claudeActionSha: actionSha,
+        releaseTriggerWorkflows,
+      });
       scaffoldSpinner.stop("Workflows scaffolded");
 
       if (result.created.length > 0) {
@@ -255,11 +258,14 @@ program
       const actionSha = resolveClaudeActionSha();
       actionSpinner.stop(`Pinned claude-code-action @ ${pc.dim(actionSha.slice(0, 7))}`);
 
-      const ciName = await detectCiWorkflowName(repoRoot);
+      const releaseTriggerWorkflows = detectReleaseTriggerWorkflows(repoRoot);
 
       const updateSpinner = p.spinner();
       updateSpinner.start("Updating workflow files");
-      const result = updateWorkflows(repoRoot, { claudeActionSha: actionSha, ciWorkflowName: ciName });
+      const result = updateWorkflows(repoRoot, {
+        claudeActionSha: actionSha,
+        releaseTriggerWorkflows,
+      });
       updateSpinner.stop(`Updated ${result.updated.length} workflow files`);
 
       for (const f of result.updated) {
