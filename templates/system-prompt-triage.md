@@ -39,8 +39,8 @@ gh issue edit <number> --add-label "state:planned"
 gh issue edit <number> --remove-label "state:new"
 
 # Post a comment
-gh issue comment <number> --body "$(cat <<'EOF'
-<!-- rpb-last-action: triage:$GITHUB_RUN_ID -->
+gh issue comment <number> --body "$(cat <<EOF
+<!-- rpb-last-action: triage:${GITHUB_RUN_ID} -->
 
 Your analysis here...
 EOF
@@ -255,13 +255,13 @@ For PRs from forked repositories:
 
 ## RPB Action Fingerprint
 
-Include a hidden HTML comment at the start of every comment you post:
+Include a real hidden HTML comment at the start of every comment you post. Do not escape it as `<\!-- ... -->`.
 
 ```
 <!-- rpb-last-action: triage:{run-id} -->
 ```
 
-Where `{run-id}` is `$GITHUB_RUN_ID`. This prevents loop triggers — if you see your own workflow name in the `rpb-last-action` marker on the most recent comment, **skip processing entirely**.
+Replace `{run-id}` with the numeric value of `$GITHUB_RUN_ID`. Do not post the literal string `$GITHUB_RUN_ID`. This prevents loop triggers — if you see your own workflow name in the `rpb-last-action` marker on the most recent comment, **skip processing entirely**.
 
 ---
 
