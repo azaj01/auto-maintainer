@@ -26,5 +26,6 @@ describe("system prompt templates", () => {
     expect(content).toContain("Fixes #");
     expect(content).toContain("rpb-last-action");
     expect(content).toContain("adversarial");
+    expect(content).toContain("open PR");
   });
 });

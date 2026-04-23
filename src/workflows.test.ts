@@ -47,6 +47,15 @@ describe("workflow templates", () => {
     expect(wf.on.workflow_run).toBeTruthy();
   });
 
+  it("gate and release workflows include configurable enforcement hooks", () => {
+    const gate = readFileSync(resolve(templatesDir, "gate-runner.yml"), "utf-8");
+    expect(gate).toContain("required_pr_checks");
+
+    const release = readFileSync(resolve(templatesDir, "release-runner.yml"), "utf-8");
+    expect(release).toContain("required_release_checks");
+    expect(release).not.toContain("homebrew_cask");
+  });
+
   it("all AI workflows use pinned action SHA placeholder", () => {
     for (const name of ["triage-agent.yml", "implement-agent.yml"]) {
       const content = readFileSync(resolve(templatesDir, name), "utf-8");

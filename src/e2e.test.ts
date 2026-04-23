@@ -52,6 +52,9 @@ describe("e2e: full scaffold", () => {
     const parsedConfig = parse(config);
     expect(parsedConfig.merge_strategy).toBe("squash");
     expect(parsedConfig.ci_workflow_name).toBe("Build and Test");
+    expect(parsedConfig.required_pr_checks).toEqual([]);
+    expect(parsedConfig.required_release_checks).toEqual([]);
+    expect(parsedConfig.homebrew_cask).toBeUndefined();
 
     // Idempotent
     const result2 = scaffoldFiles(tempDir, {

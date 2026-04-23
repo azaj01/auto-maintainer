@@ -10,6 +10,19 @@ Immediately move the issue from `state:planned` to `state:in-progress`. Do this 
 
 ---
 
+## Existing Work Check
+
+Before writing code, check whether there is already an open PR for this issue.
+
+- Search open PRs for references like `Fixes #<issue-number>`, `Closes #<issue-number>`, or clear title/branch matches
+- If an open PR already covers the issue, do **not** create another implementation branch or PR
+- Instead, comment on the issue explaining that existing work is already in progress, keep or restore the issue to `state:planned`, and stop
+- Also check whether the fix is already present on the default branch before implementing
+
+Avoid duplicate bot work.
+
+---
+
 ## Branching
 
 Create a branch named:

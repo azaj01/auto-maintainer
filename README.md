@@ -105,11 +105,11 @@ auto-maintainer installs four GitHub Actions workflows. Together, they handle th
 
 **Triage** — When an issue or PR comes in, the bot reads it, classifies it (bug? feature? docs?), assesses the risk, checks for duplicates, and decides what to do next. For PRs, it reviews the code. All based on your rules.
 
-**Implement** — For issues it can handle (low and medium risk), it writes the fix, creates a branch, and opens a PR. If the PR gets review feedback, it revises. It keeps going until the fix is right.
+**Implement** — For issues it can handle (low and medium risk), it writes the fix, creates a branch, and opens a PR. Before it starts, it checks whether an open PR already covers the issue so it doesn't duplicate work. If the PR gets review feedback, it revises. It keeps going until the fix is right.
 
-**Merge** — When a PR is ready (CI green, review approved, labels correct), it merges automatically. No human needed. It uses your repo's branch protection rules — it doesn't bypass anything, it works within them.
+**Merge** — When a PR is ready (CI green, review approved, labels correct), it merges automatically. No human needed. It uses your repo's branch protection rules — it doesn't bypass anything, it works within them. If you want stricter enforcement, add named checks in `.github/repo-policy.yml` and Gate Runner will verify them explicitly before merging.
 
-**Release** — After merges, it checks what landed, determines the right version bump from labels, and cuts a release. Patch and minor releases happen automatically. Major releases wait for a human.
+**Release** — After merges, it checks what landed, determines the right version bump from labels, and cuts a release. Patch and minor releases happen automatically. Major releases wait for a human. If you want stricter enforcement, add named checks in `.github/repo-policy.yml` and Release Runner will verify them before cutting a release.
 
 ### When it asks for help
 
@@ -126,7 +126,18 @@ When this happens, it labels the item `state:awaiting-human` and waits. You deci
 
 auto-maintainer works with whatever CI you already have. Your tests, your linters, your smoke tests — they all run as normal. The Gate Runner won't merge anything until your CI passes.
 
-If you want to add checks specifically for auto-maintainer, just add them as regular GitHub Actions workflows. They'll be picked up automatically through branch protection.
+If branch protection is enough for your repo, you can stop there. If you want explicit named checks, configure them in `.github/repo-policy.yml`:
+
+```yaml
+required_pr_checks:
+  - validate-swift
+
+required_release_checks:
+  - validate-swift
+  - package-smoke
+```
+
+Gate Runner verifies `required_pr_checks` on the PR head SHA before merging. Release Runner verifies `required_release_checks` on the release target SHA before cutting a release.
 
 ## Labels
 
@@ -171,6 +182,19 @@ npx auto-maintainer update
 # Re-sync labels (safe to re-run anytime)
 npx auto-maintainer labels
 ```
+
+### Machine-readable policy knobs
+
+Alongside `.github/repo-policy.md`, auto-maintainer scaffolds `.github/repo-policy.yml` for the small bits that are easier to express as data than prose:
+
+```yaml
+merge_strategy: squash
+ci_workflow_name: CI
+required_pr_checks: []
+required_release_checks: []
+```
+
+Use this for merge strategy and explicit required checks.
 
 ### Updating
 

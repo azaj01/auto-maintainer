@@ -29,5 +29,5 @@
 - OK to reimplement rather than iterate on the PR
 
 # Repo-Specific Rules
-<!-- Anything unique to this project. -->
+<!-- Anything unique to this project. Put machine-readable knobs like required checks in repo-policy.yml. -->
 - Example: Treat changes to the billing module as risk:high
